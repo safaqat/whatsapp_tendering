@@ -63,25 +63,40 @@ class TwilioService {
   // Send tender alert to all suppliers
   async sendTenderAlert(tender) {
     const suppliers = this.isMock ? mockDB.getActiveSuppliers() : await this.getActiveSuppliers();
-    const message = this.formatTenderMessage(tender);
-    
     const results = [];
     for (const supplier of suppliers) {
       try {
-        const result = await this.sendWhatsAppMessage(supplier.phone, message);
-        results.push({ supplier: supplier.phone, success: true, sid: result.sid });
+        if (this.isMock) {
+          // Mock mode: just log
+          console.log(`[MOCK] WhatsApp template message to ${supplier.phone}: tender_alert`);
+          results.push({ supplier: supplier.phone, success: true, sid: 'MOCK_SID' });
+        } else {
+          // Use WhatsApp template
+          const result = await this.client.messages.create({
+            from: this.fromNumber,
+            to: supplier.phone,
+            contentSid: 'HXe276b83a6d465ed643e2fa9ab252e32e',
+            contentVariables: JSON.stringify({
+              '1': `${tender.quantity} ${tender.unit} ${tender.title}`,
+              '2': tender.category,
+              '3': new Date(tender.closing_date).toLocaleDateString(),
+              '4': tender.description
+            })
+          });
+          console.log(`✅ WhatsApp template message sent to ${supplier.phone}: ${result.sid}`);
+          results.push({ supplier: supplier.phone, success: true, sid: result.sid });
+        }
       } catch (error) {
+        console.error(`❌ Error sending WhatsApp template message to ${supplier.phone}:`, error);
         results.push({ supplier: supplier.phone, success: false, error: error.message });
       }
     }
-
     // Log notification
     if (this.isMock) {
       mockDB.addNotification({ type: 'tender_alert', recipient: 'all_suppliers', message: `Tender alert for ${tender.tender_id}`, status: 'mocked', sent_at: new Date() });
     } else {
       await this.logNotification('tender_alert', 'all_suppliers', `Tender alert sent for ${tender.tender_id}`, results);
     }
-    
     return results;
   }
 
