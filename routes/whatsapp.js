@@ -16,6 +16,13 @@ try {
 // Handle incoming WhatsApp messages
 router.post('/webhook', async (req, res) => {
   try {
+    console.log('🔔 Received webhook from Twilio:', {
+      body: req.body,
+      headers: req.headers,
+      method: req.method,
+      url: req.url
+    });
+
     // Verify Twilio signature in production
     if (process.env.NODE_ENV === 'production') {
       const isValid = twilioService.verifyWebhookSignature(req);
@@ -27,7 +34,7 @@ router.post('/webhook', async (req, res) => {
 
     const { Body, From, MediaUrl0, MessageType, NumMedia } = req.body;
     
-    console.log(`📱 Received WhatsApp message from ${From}:`, {
+    console.log(`📱 Processing WhatsApp message from ${From}:`, {
       body: Body,
       mediaUrl: MediaUrl0,
       messageType: MessageType,
