@@ -18,7 +18,17 @@ const adminRoutes = require('./routes/admin');
 const dashboardRoutes = require('./routes/dashboard');
 
 // Security middleware
-app.use(helmet());
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      useDefaults: true,
+      directives: {
+        "script-src": ["'self'", "'unsafe-inline'"],
+        // You can add more directives as needed
+      },
+    },
+  })
+);
 app.use(cors());
 
 // Rate limiting
