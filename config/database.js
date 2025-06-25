@@ -55,7 +55,7 @@ const initDatabase = async () => {
       CREATE TABLE IF NOT EXISTS bids (
         id SERIAL PRIMARY KEY,
         tender_id VARCHAR(100) NOT NULL,
-        supplier_phone VARCHAR(20) NOT NULL,
+        supplier_phone VARCHAR(50) NOT NULL,
         supplier_name VARCHAR(255),
         price DECIMAL(10,2) NOT NULL,
         currency VARCHAR(3) DEFAULT 'OMR',
@@ -74,7 +74,7 @@ const initDatabase = async () => {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS suppliers (
         id SERIAL PRIMARY KEY,
-        phone VARCHAR(20) UNIQUE NOT NULL,
+        phone VARCHAR(50) UNIQUE NOT NULL,
         name VARCHAR(255),
         email VARCHAR(255),
         categories TEXT[],
