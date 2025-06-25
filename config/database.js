@@ -33,6 +33,13 @@ const initDatabase = async () => {
   }
 
   try {
+    // Drop existing tables if they exist (to fix schema issues)
+    console.log('🔄 Dropping existing tables to fix schema...');
+    await pool.query('DROP TABLE IF EXISTS bids CASCADE');
+    await pool.query('DROP TABLE IF EXISTS suppliers CASCADE');
+    await pool.query('DROP TABLE IF EXISTS notifications CASCADE');
+    await pool.query('DROP TABLE IF EXISTS tenders CASCADE');
+
     // Create tenders table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS tenders (
