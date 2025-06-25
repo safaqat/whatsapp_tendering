@@ -1,24 +1,37 @@
 const { Pool } = require('pg');
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
-});
+// Check if we have a real database URL
+const hasRealDatabase = process.env.DATABASE_URL && process.env.DATABASE_URL !== '';
 
-// Test database connection
-pool.on('connect', () => {
-  console.log('✅ Connected to PostgreSQL database');
-});
+let pool;
+if (hasRealDatabase) {
+  pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+    max: 20,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 2000,
+  });
 
-pool.on('error', (err) => {
-  console.error('❌ Database connection error:', err);
-});
+  // Test database connection
+  pool.on('connect', () => {
+    console.log('✅ Connected to PostgreSQL database');
+  });
+
+  pool.on('error', (err) => {
+    console.error('❌ Database connection error:', err);
+  });
+} else {
+  console.log('⚠️ No DATABASE_URL found - using mock database');
+}
 
 // Initialize database tables
 const initDatabase = async () => {
+  if (!hasRealDatabase) {
+    console.log('⚠️ Skipping database initialization - using mock database');
+    return;
+  }
+
   try {
     // Create tenders table
     await pool.query(`
@@ -83,6 +96,16 @@ const initDatabase = async () => {
       )
     `);
 
+    // Insert some sample suppliers
+    await pool.query(`
+      INSERT INTO suppliers (phone, name, language, is_active) 
+      VALUES 
+        ('whatsapp:+96811111111', 'Supplier One', 'English', true),
+        ('whatsapp:+96822222222', 'Supplier Two', 'Arabic', true),
+        ('whatsapp:+96833333333', 'Supplier Three', 'Hindi', true)
+      ON CONFLICT (phone) DO NOTHING
+    `);
+
     console.log('✅ Database tables initialized successfully');
   } catch (error) {
     console.error('❌ Database initialization error:', error);
@@ -92,5 +115,6 @@ const initDatabase = async () => {
 
 module.exports = {
   pool,
-  initDatabase
+  initDatabase,
+  hasRealDatabase
 }; 

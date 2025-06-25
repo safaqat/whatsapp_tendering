@@ -7,6 +7,9 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Import database
+const { initDatabase } = require('./config/database');
+
 // Import routes
 const whatsappRoutes = require('./routes/whatsapp');
 const tenderRoutes = require('./routes/tenders');
@@ -68,10 +71,22 @@ app.use('*', (req, res) => {
 });
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`🚀 WhatsApp Tendering System running on port ${PORT}`);
-  console.log(`📊 Dashboard available at: http://localhost:${PORT}/dashboard`);
-  console.log(`🔗 Health check: http://localhost:${PORT}/health`);
-});
+const startServer = async () => {
+  try {
+    // Initialize database
+    await initDatabase();
+    
+    app.listen(PORT, () => {
+      console.log(`🚀 WhatsApp Tendering System running on port ${PORT}`);
+      console.log(`📊 Dashboard available at: http://localhost:${PORT}/dashboard`);
+      console.log(`🔗 Health check: http://localhost:${PORT}/health`);
+    });
+  } catch (error) {
+    console.error('❌ Failed to start server:', error);
+    process.exit(1);
+  }
+};
+
+startServer();
 
 module.exports = app; 
