@@ -3,111 +3,222 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WhatsApp Tendering System Dashboard (Demo)</title>
+  <title>WhatsApp Tendering System Dashboard</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/milligram/1.4.1/milligram.min.css">
   <style>
     body { margin: 2rem; }
-    .container { max-width: 900px; margin: auto; }
+    .container { max-width: 1200px; margin: auto; }
     .card { background: #f9f9f9; border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem; box-shadow: 0 2px 8px #eee; }
     h2 { margin-top: 0; }
     table { width: 100%; }
     th, td { text-align: left; }
     .success { color: green; }
     .error { color: red; }
+    .warning { color: orange; }
     .loading { opacity: 0.5; }
     .webhook-info { background: #e8f4fd; padding: 1rem; border-radius: 4px; margin: 1rem 0; }
+    .status-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin: 1rem 0; }
+    .status-item { background: white; padding: 1rem; border-radius: 4px; text-align: center; }
+    .status-item.connected { border-left: 4px solid green; }
+    .status-item.not-configured { border-left: 4px solid red; }
+    .status-item.configured { border-left: 4px solid orange; }
+    .tabs { display: flex; border-bottom: 1px solid #ddd; margin-bottom: 1rem; }
+    .tab { padding: 0.5rem 1rem; cursor: pointer; border-bottom: 2px solid transparent; }
+    .tab.active { border-bottom-color: #007cba; background: #f0f8ff; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>📊 WhatsApp Tendering System <small>(Demo)</small></h1>
+    <h1>📊 WhatsApp Tendering System Dashboard</h1>
     
     <div class="webhook-info">
       <h3>🔗 Webhook URL for Twilio</h3>
       <p><strong>URL:</strong> <code id="webhookUrl">Loading...</code></p>
       <p><strong>Status:</strong> <span id="webhookStatus">Checking...</span></p>
-      <button onclick="copyWebhookUrl()" class="button button-small">Copy URL</button>
+      <button id="copyWebhookBtn" class="button button-small">Copy URL</button>
     </div>
 
     <div class="card">
-      <h2>Summary</h2>
-      <div id="summary"></div>
-    </div>
-    
-    <div class="card">
-      <h2>Post New Tender</h2>
-      <form id="tenderForm">
-        <div class="row">
-          <div class="column">
-            <input type="text" id="title" placeholder="Title (e.g. 100 A4 Paper Packs)" required>
-          </div>
-          <div class="column">
-            <input type="text" id="category" placeholder="Category (e.g. Stationery)" required>
-          </div>
+      <h2>System Status</h2>
+      <div id="systemStatus" class="status-grid">
+        <div class="status-item">
+          <h4>Database</h4>
+          <p id="dbStatus">Loading...</p>
         </div>
-        <div class="row">
-          <div class="column">
-            <input type="number" id="quantity" placeholder="Quantity" required>
-          </div>
-          <div class="column">
-            <input type="text" id="unit" placeholder="Unit (e.g. packs)" required>
-          </div>
+        <div class="status-item">
+          <h4>Twilio</h4>
+          <p id="twilioStatus">Loading...</p>
         </div>
-        <input type="date" id="closing_date" required>
-        <textarea id="description" placeholder="Description" rows="2"></textarea>
-        <button type="submit" id="submitBtn">Post Tender</button>
-        <span id="tenderMsg"></span>
-      </form>
-    </div>
-    
-    <div class="card">
-      <h2>Recent Tenders</h2>
-      <table id="tendersTable">
-        <thead>
-          <tr><th>ID</th><th>Title</th><th>Category</th><th>Quantity</th><th>Unit</th><th>Closing</th></tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
-    
-    <div class="card">
-      <h2>Recent Bids</h2>
-      <table id="bidsTable">
-        <thead>
-          <tr><th>ID</th><th>Tender</th><th>Supplier</th><th>Price</th><th>Delivery</th><th>Status</th></tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
-
-    <div class="card">
-      <h2>Test WhatsApp Integration</h2>
-      <p>Simulate a WhatsApp message from a supplier:</p>
-      <div class="row">
-        <div class="column">
-          <input type="text" id="testMessage" placeholder="e.g. 25 OMR, ready in 2 days" value="25 OMR, ready in 2 days">
+        <div class="status-item">
+          <h4>OpenAI</h4>
+          <p id="openaiStatus">Loading...</p>
         </div>
-        <div class="column">
-          <button onclick="simulateWhatsAppMessage()" class="button">Simulate WhatsApp Message</button>
+        <div class="status-item">
+          <h4>Admin Phone</h4>
+          <p id="adminStatus">Loading...</p>
         </div>
       </div>
-      <div id="simulationResult"></div>
+      <div id="summary"></div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" onclick="showTab('tenders')">📋 Tenders</div>
+      <div class="tab" onclick="showTab('bids')">💰 Bids</div>
+      <div class="tab" onclick="showTab('suppliers')">👥 Suppliers</div>
+      <div class="tab" onclick="showTab('logs')">📝 Logs</div>
+    </div>
+
+    <div id="tenders-tab" class="tab-content active">
+      <div class="card">
+        <h2>Post New Tender</h2>
+        <form id="tenderForm">
+          <div class="row">
+            <div class="column">
+              <input type="text" id="title" placeholder="Title (e.g. 100 A4 Paper Packs)" required>
+            </div>
+            <div class="column">
+              <input type="text" id="category" placeholder="Category (e.g. Stationery)" required>
+            </div>
+          </div>
+          <div class="row">
+            <div class="column">
+              <input type="number" id="quantity" placeholder="Quantity" required>
+            </div>
+            <div class="column">
+              <input type="text" id="unit" placeholder="Unit (e.g. packs)" required>
+            </div>
+          </div>
+          <input type="date" id="closing_date" required>
+          <textarea id="description" placeholder="Description" rows="2"></textarea>
+          <button type="submit" id="submitBtn">Post Tender</button>
+          <span id="tenderMsg"></span>
+        </form>
+      </div>
+      
+      <div class="card">
+        <h2>Recent Tenders</h2>
+        <table id="tendersTable">
+          <thead>
+            <tr><th>ID</th><th>Title</th><th>Category</th><th>Quantity</th><th>Unit</th><th>Closing</th><th>Status</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="bids-tab" class="tab-content">
+      <div class="card">
+        <h2>Recent Bids</h2>
+        <table id="bidsTable">
+          <thead>
+            <tr><th>ID</th><th>Tender</th><th>Supplier</th><th>Price</th><th>Delivery</th><th>Language</th><th>Status</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2>Test WhatsApp Integration</h2>
+        <p>Simulate a WhatsApp message from a supplier:</p>
+        <div class="row">
+          <div class="column">
+            <input type="text" id="testMessage" placeholder="e.g. 25 OMR, ready in 2 days" value="25 OMR, ready in 2 days">
+          </div>
+          <div class="column">
+            <button id="simulateBtn" class="button">Simulate WhatsApp Message</button>
+          </div>
+        </div>
+        <div id="simulationResult"></div>
+      </div>
+    </div>
+
+    <div id="suppliers-tab" class="tab-content">
+      <div class="card">
+        <h2>Add New Supplier</h2>
+        <form id="supplierForm">
+          <div class="row">
+            <div class="column">
+              <input type="text" id="supplierPhone" placeholder="WhatsApp number (e.g. +96812345678)" required>
+            </div>
+            <div class="column">
+              <input type="text" id="supplierName" placeholder="Supplier name" required>
+            </div>
+          </div>
+          <div class="row">
+            <div class="column">
+              <input type="email" id="supplierEmail" placeholder="Email (optional)">
+            </div>
+            <div class="column">
+              <input type="text" id="supplierCategories" placeholder="Categories (comma-separated)">
+            </div>
+          </div>
+          <select id="supplierLanguage">
+            <option value="English">English</option>
+            <option value="Arabic">Arabic</option>
+            <option value="Hindi">Hindi</option>
+            <option value="Urdu">Urdu</option>
+          </select>
+          <button type="submit" id="addSupplierBtn">Add Supplier</button>
+          <span id="supplierMsg"></span>
+        </form>
+      </div>
+
+      <div class="card">
+        <h2>Manage Suppliers</h2>
+        <table id="suppliersTable">
+          <thead>
+            <tr><th>Phone</th><th>Name</th><th>Email</th><th>Categories</th><th>Language</th><th>Status</th><th>Actions</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="logs-tab" class="tab-content">
+      <div class="card">
+        <h2>System Logs</h2>
+        <button id="clearLogsBtn" class="button button-small">Clear Old Logs</button>
+        <table id="logsTable">
+          <thead>
+            <tr><th>Time</th><th>Type</th><th>Recipient</th><th>Message</th><th>Status</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
     </div>
   </div>
   
   <script>
     let webhookUrl = '';
 
+    // Tab management
+    function showTab(tabName) {
+      // Hide all tabs
+      document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+      document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+      
+      // Show selected tab
+      document.getElementById(tabName + '-tab').classList.add('active');
+      event.target.classList.add('active');
+      
+      // Load tab-specific data
+      if (tabName === 'suppliers') {
+        fetchSuppliers();
+      } else if (tabName === 'logs') {
+        fetchLogs();
+      }
+    }
+
     // Get webhook URL
     async function getWebhookUrl() {
       try {
-        // Try to get the current hostname
         const hostname = window.location.hostname;
         const port = window.location.port;
         const protocol = window.location.protocol;
         
         if (hostname === 'localhost' || hostname === '127.0.0.1') {
-          // For local development, try to get a public URL
           try {
             const response = await fetch('https://api.ipify.org?format=json');
             const data = await response.json();
@@ -135,24 +246,37 @@
       });
     }
 
-    async function fetchSummary() {
+    async function fetchSystemStatus() {
       try {
-        const res = await fetch('/api/dashboard/summary');
-        const data = await res.json();
+        const res = await fetch('/api/admin/status');
+        const status = await res.json();
+        
+        document.getElementById('dbStatus').textContent = status.database;
+        document.getElementById('dbStatus').parentElement.className = `status-item ${status.database === 'connected' ? 'connected' : 'not-configured'}`;
+        
+        document.getElementById('twilioStatus').textContent = status.twilio;
+        document.getElementById('twilioStatus').parentElement.className = `status-item ${status.twilio === 'configured' ? 'configured' : 'not-configured'}`;
+        
+        document.getElementById('openaiStatus').textContent = status.openai;
+        document.getElementById('openaiStatus').parentElement.className = `status-item ${status.openai === 'configured' ? 'configured' : 'not-configured'}`;
+        
+        document.getElementById('adminStatus').textContent = status.admin_phone;
+        document.getElementById('adminStatus').parentElement.className = `status-item ${status.admin_phone === 'configured' ? 'configured' : 'not-configured'}`;
+        
         document.getElementById('summary').innerHTML = `
-          <b>Tenders:</b> ${data.tenders} &nbsp; | &nbsp;
-          <b>Bids:</b> ${data.bids} &nbsp; | &nbsp;
-          <b>Suppliers:</b> ${data.suppliers} &nbsp; | &nbsp;
-          <b>Notifications:</b> ${data.notifications}
+          <b>Tenders:</b> ${status.tenders} &nbsp; | &nbsp;
+          <b>Bids:</b> ${status.bids} &nbsp; | &nbsp;
+          <b>Suppliers:</b> ${status.suppliers} &nbsp; | &nbsp;
+          <b>System:</b> ${status.database === 'connected' ? 'Production' : 'Demo'}
         `;
       } catch (error) {
-        console.error('Error fetching summary:', error);
+        console.error('Error fetching system status:', error);
       }
     }
 
     async function fetchTenders() {
       try {
-        const res = await fetch('/api/dashboard/tenders');
+        const res = await fetch('/api/tenders');
         const tenders = await res.json();
         const tbody = document.querySelector('#tendersTable tbody');
         tbody.innerHTML = '';
@@ -164,6 +288,7 @@
             <td>${t.quantity}</td>
             <td>${t.unit}</td>
             <td>${new Date(t.closing_date).toLocaleDateString()}</td>
+            <td>${t.status}</td>
           </tr>`;
         });
       } catch (error) {
@@ -173,7 +298,7 @@
 
     async function fetchBids() {
       try {
-        const res = await fetch('/api/dashboard/bids');
+        const res = await fetch('/api/bids');
         const bids = await res.json();
         const tbody = document.querySelector('#bidsTable tbody');
         tbody.innerHTML = '';
@@ -184,11 +309,57 @@
             <td>${b.supplier_phone}</td>
             <td>${b.price} ${b.currency}</td>
             <td>${b.delivery_time || ''}</td>
+            <td>${b.language || ''}</td>
             <td>${b.status}</td>
           </tr>`;
         });
       } catch (error) {
         console.error('Error fetching bids:', error);
+      }
+    }
+
+    async function fetchSuppliers() {
+      try {
+        const res = await fetch('/api/admin/suppliers');
+        const suppliers = await res.json();
+        const tbody = document.querySelector('#suppliersTable tbody');
+        tbody.innerHTML = '';
+        suppliers.forEach(s => {
+          tbody.innerHTML += `<tr>
+            <td>${s.phone}</td>
+            <td>${s.name}</td>
+            <td>${s.email || ''}</td>
+            <td>${s.categories ? s.categories.join(', ') : ''}</td>
+            <td>${s.language}</td>
+            <td>${s.is_active ? 'Active' : 'Inactive'}</td>
+            <td>
+              <button onclick="testSupplier(${s.id})" class="button button-small">Test</button>
+              <button onclick="toggleSupplier(${s.id}, ${!s.is_active})" class="button button-small">${s.is_active ? 'Deactivate' : 'Activate'}</button>
+            </td>
+          </tr>`;
+        });
+      } catch (error) {
+        console.error('Error fetching suppliers:', error);
+      }
+    }
+
+    async function fetchLogs() {
+      try {
+        const res = await fetch('/api/admin/logs');
+        const logs = await res.json();
+        const tbody = document.querySelector('#logsTable tbody');
+        tbody.innerHTML = '';
+        logs.forEach(log => {
+          tbody.innerHTML += `<tr>
+            <td>${new Date(log.sent_at).toLocaleString()}</td>
+            <td>${log.type}</td>
+            <td>${log.recipient}</td>
+            <td>${log.message.substring(0, 50)}${log.message.length > 50 ? '...' : ''}</td>
+            <td>${log.status}</td>
+          </tr>`;
+        });
+      } catch (error) {
+        console.error('Error fetching logs:', error);
       }
     }
 
@@ -212,7 +383,7 @@
         if (res.ok) {
           resultDiv.innerHTML = '<p class="success">✅ WhatsApp message simulated successfully! Check the bids table above.</p>';
           fetchBids();
-          fetchSummary();
+          fetchSystemStatus();
         } else {
           resultDiv.innerHTML = '<p class="error">❌ Error simulating message</p>';
         }
@@ -221,68 +392,174 @@
       }
     }
 
-    document.getElementById('tenderForm').onsubmit = async (e) => {
-      e.preventDefault();
-      
-      const submitBtn = document.getElementById('submitBtn');
-      const msgSpan = document.getElementById('tenderMsg');
-      
-      submitBtn.disabled = true;
-      submitBtn.textContent = 'Posting...';
-      msgSpan.textContent = '';
-      
-      const tender = {
-        title: document.getElementById('title').value,
-        category: document.getElementById('category').value,
-        quantity: parseInt(document.getElementById('quantity').value),
-        unit: document.getElementById('unit').value,
-        closing_date: document.getElementById('closing_date').value,
-        description: document.getElementById('description').value || document.getElementById('title').value
-      };
-
+    async function testSupplier(supplierId) {
       try {
-        const res = await fetch('/api/tenders', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(tender)
-        });
-        
+        const res = await fetch(`/api/admin/suppliers/${supplierId}/test`, { method: 'POST' });
         if (res.ok) {
-          const result = await res.json();
-          msgSpan.textContent = '✅ Tender posted successfully!';
-          msgSpan.className = 'success';
-          
-          // Clear form
-          document.getElementById('tenderForm').reset();
-          
-          // Refresh data
-          fetchTenders();
-          fetchSummary();
+          alert('Test message sent successfully!');
         } else {
-          const error = await res.text();
-          msgSpan.textContent = '❌ Error: ' + error;
-          msgSpan.className = 'error';
+          alert('Error sending test message');
         }
       } catch (error) {
-        msgSpan.textContent = '❌ Error: ' + error.message;
-        msgSpan.className = 'error';
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Post Tender';
-        setTimeout(() => { msgSpan.textContent = ''; }, 3000);
+        alert('Error: ' + error.message);
       }
-    };
+    }
 
-    // Initialize
-    getWebhookUrl();
-    fetchSummary();
-    fetchTenders();
-    fetchBids();
-    
-    // Auto-refresh every 5 seconds
-    setInterval(fetchSummary, 5000);
-    setInterval(fetchTenders, 5000);
-    setInterval(fetchBids, 5000);
+    async function toggleSupplier(supplierId, isActive) {
+      try {
+        const res = await fetch(`/api/admin/suppliers/${supplierId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ is_active: isActive })
+        });
+        if (res.ok) {
+          fetchSuppliers();
+          fetchSystemStatus();
+        } else {
+          alert('Error updating supplier');
+        }
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    }
+
+    // Event Listeners
+    document.addEventListener('DOMContentLoaded', function() {
+      // Copy webhook URL button
+      document.getElementById('copyWebhookBtn').addEventListener('click', copyWebhookUrl);
+      
+      // Simulate WhatsApp message button
+      document.getElementById('simulateBtn').addEventListener('click', simulateWhatsAppMessage);
+      
+      // Clear logs button
+      document.getElementById('clearLogsBtn').addEventListener('click', async () => {
+        if (confirm('Clear logs older than 30 days?')) {
+          try {
+            const res = await fetch('/api/admin/logs', { method: 'DELETE' });
+            if (res.ok) {
+              fetchLogs();
+            }
+          } catch (error) {
+            alert('Error clearing logs');
+          }
+        }
+      });
+      
+      // Tender form submission
+      document.getElementById('tenderForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const submitBtn = document.getElementById('submitBtn');
+        const msgSpan = document.getElementById('tenderMsg');
+        
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Posting...';
+        msgSpan.textContent = '';
+        
+        const tender = {
+          title: document.getElementById('title').value,
+          category: document.getElementById('category').value,
+          quantity: parseInt(document.getElementById('quantity').value),
+          unit: document.getElementById('unit').value,
+          closing_date: document.getElementById('closing_date').value,
+          description: document.getElementById('description').value || document.getElementById('title').value
+        };
+
+        try {
+          const res = await fetch('/api/tenders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(tender)
+          });
+          
+          if (res.ok) {
+            const result = await res.json();
+            msgSpan.textContent = '✅ Tender posted successfully! WhatsApp alerts sent to suppliers.';
+            msgSpan.className = 'success';
+            
+            // Clear form
+            document.getElementById('tenderForm').reset();
+            
+            // Refresh data
+            fetchTenders();
+            fetchSystemStatus();
+          } else {
+            const error = await res.text();
+            msgSpan.textContent = '❌ Error: ' + error;
+            msgSpan.className = 'error';
+          }
+        } catch (error) {
+          msgSpan.textContent = '❌ Error: ' + error.message;
+          msgSpan.className = 'error';
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Post Tender';
+          setTimeout(() => { msgSpan.textContent = ''; }, 5000);
+        }
+      });
+
+      // Supplier form submission
+      document.getElementById('supplierForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const submitBtn = document.getElementById('addSupplierBtn');
+        const msgSpan = document.getElementById('supplierMsg');
+        
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Adding...';
+        msgSpan.textContent = '';
+        
+        const supplier = {
+          phone: document.getElementById('supplierPhone').value,
+          name: document.getElementById('supplierName').value,
+          email: document.getElementById('supplierEmail').value,
+          categories: document.getElementById('supplierCategories').value,
+          language: document.getElementById('supplierLanguage').value
+        };
+
+        try {
+          const res = await fetch('/api/admin/suppliers', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(supplier)
+          });
+          
+          if (res.ok) {
+            msgSpan.textContent = '✅ Supplier added successfully!';
+            msgSpan.className = 'success';
+            
+            // Clear form
+            document.getElementById('supplierForm').reset();
+            
+            // Refresh data
+            fetchSuppliers();
+            fetchSystemStatus();
+          } else {
+            const error = await res.text();
+            msgSpan.textContent = '❌ Error: ' + error;
+            msgSpan.className = 'error';
+          }
+        } catch (error) {
+          msgSpan.textContent = '❌ Error: ' + error.message;
+          msgSpan.className = 'error';
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Add Supplier';
+          setTimeout(() => { msgSpan.textContent = ''; }, 3000);
+        }
+      });
+
+      // Initialize
+      getWebhookUrl();
+      fetchSystemStatus();
+      fetchTenders();
+      fetchBids();
+      
+      // Auto-refresh every 10 seconds
+      setInterval(fetchSystemStatus, 10000);
+      setInterval(fetchTenders, 10000);
+      setInterval(fetchBids, 10000);
+    });
   </script>
 </body>
 </html> 

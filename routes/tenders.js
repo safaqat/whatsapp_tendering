@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const mockDB = require('../config/mockDatabase');
 const { pool, hasRealDatabase } = require('../config/database');
+const twilioService = require('../services/twilioService');
 
 // List all tenders
 router.get('/', async (req, res) => {
@@ -35,16 +36,48 @@ router.post('/', async (req, res) => {
       updated_at: new Date()
     };
 
+    let savedTender;
     if (hasRealDatabase && pool) {
       const result = await pool.query(
         'INSERT INTO tenders (tender_id, title, description, category, quantity, unit, closing_date) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
         [tender.tender_id, tender.title, tender.description, tender.category, tender.quantity, tender.unit, tender.closing_date]
       );
-      res.status(201).json(result.rows[0]);
+      savedTender = result.rows[0];
     } else {
       mockDB.addTender(tender);
-      res.status(201).json(tender);
+      savedTender = tender;
     }
+
+    // Send WhatsApp alerts to all suppliers
+    try {
+      console.log('📱 Sending tender alerts to suppliers...');
+      const alertResults = await twilioService.sendTenderAlert(savedTender);
+      console.log('✅ Tender alerts sent:', alertResults);
+      
+      // Add notification to database
+      if (hasRealDatabase && pool) {
+        await pool.query(
+          'INSERT INTO notifications (type, recipient, message, status) VALUES ($1, $2, $3, $4)',
+          ['tender_alert', 'all_suppliers', `Tender alert sent for ${savedTender.tender_id}`, 'sent']
+        );
+      } else {
+        mockDB.addNotification({
+          type: 'tender_alert',
+          recipient: 'all_suppliers',
+          message: `Tender alert sent for ${savedTender.tender_id}`,
+          status: 'sent',
+          sent_at: new Date()
+        });
+      }
+    } catch (alertError) {
+      console.error('❌ Error sending tender alerts:', alertError);
+      // Don't fail the tender creation if alerts fail
+    }
+
+    res.status(201).json({
+      ...savedTender,
+      alerts_sent: true
+    });
   } catch (error) {
     console.error('Error creating tender:', error);
     res.status(500).json({ error: 'Failed to create tender' });
