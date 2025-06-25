@@ -64,10 +64,10 @@
     </div>
 
     <div class="tabs">
-      <div class="tab active" onclick="showTab('tenders')">📋 Tenders</div>
-      <div class="tab" onclick="showTab('bids')">💰 Bids</div>
-      <div class="tab" onclick="showTab('suppliers')">👥 Suppliers</div>
-      <div class="tab" onclick="showTab('logs')">📝 Logs</div>
+      <div class="tab active" data-tab="tenders">📋 Tenders</div>
+      <div class="tab" data-tab="bids">💰 Bids</div>
+      <div class="tab" data-tab="suppliers">👥 Suppliers</div>
+      <div class="tab" data-tab="logs">📝 Logs</div>
     </div>
 
     <div id="tenders-tab" class="tab-content active">
@@ -198,11 +198,9 @@
       // Hide all tabs
       document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
       document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-      
       // Show selected tab
       document.getElementById(tabName + '-tab').classList.add('active');
-      event.target.classList.add('active');
-      
+      document.querySelector('.tab[data-tab="' + tabName + '"]').classList.add('active');
       // Load tab-specific data
       if (tabName === 'suppliers') {
         fetchSuppliers();
@@ -547,6 +545,13 @@
           submitBtn.textContent = 'Add Supplier';
           setTimeout(() => { msgSpan.textContent = ''; }, 3000);
         }
+      });
+
+      // Tab event listeners
+      document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+          showTab(this.getAttribute('data-tab'));
+        });
       });
 
       // Initialize
