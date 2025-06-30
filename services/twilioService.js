@@ -149,17 +149,23 @@ Tender ID: ${tender.tender_id}`;
       }
     }
 
-    const message = `Dear client you have received a bid on your tender ${tender.title} details are below:\n  Price: ${bid.price} ${bid.currency}\n  Delivery: ${bid.delivery_time || 'Not specified'}\n  Supplier: ${supplierName}\nwould you like to select this supplier ? send yes or no`;
-
-    // Send to admin phone
-    if (process.env.ADMIN_PHONE) {
-      await this.sendWhatsAppMessage(process.env.ADMIN_PHONE, message);
-    }
-
-    // Log notification
     if (this.isMock) {
+      const message = `Dear client you have received a bid on your tender ${tender.title} details are below:\n  Price: ${bid.price} ${bid.currency}\n  Delivery: ${bid.delivery_time || 'Not specified'}\n  Supplier: ${supplierName}\nwould you like to select this supplier ? send yes or no`;
+      console.log(`[MOCK] WhatsApp template message to admin: bid_notification`);
       mockDB.addNotification({ type: 'bid_received', recipient: 'admin', message, status: 'mocked', sent_at: new Date() });
     } else {
+      // Use WhatsApp template message
+      await this.client.messages.create({
+        from: this.fromNumber,
+        to: process.env.ADMIN_PHONE,
+        contentSid: process.env.BID_NOTIFICATION_TEMPLATE_SID || 'HXce748e6374552b172107da287803e31e',
+        contentVariables: JSON.stringify({
+          '1': tender.title,
+          '2': `${bid.price} ${bid.currency}`,
+          '3': bid.delivery_time || 'Not specified',
+          '4': supplierName
+        })
+      });
       await this.logNotification('bid_received', 'admin', `New bid for ${bid.tender_id}`, { bid_id: bid.id });
     }
 
