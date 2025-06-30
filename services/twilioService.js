@@ -133,15 +133,23 @@ Tender ID: ${tender.tender_id}`;
 
   // Send bid notification to coordinators
   async sendBidNotification(bid, tender) {
-    const message = `🔔 *New Bid Received*
+    let supplierName = bid.supplier_name;
+    if (!supplierName) {
+      if (this.isMock) {
+        const supplier = mockDB.getSupplierByPhone(bid.supplier_phone);
+        supplierName = supplier ? supplier.name : bid.supplier_phone;
+      } else {
+        try {
+          const { pool } = require('../config/database');
+          const result = await pool.query('SELECT name FROM suppliers WHERE phone = $1', [bid.supplier_phone]);
+          supplierName = result.rows[0] ? result.rows[0].name : bid.supplier_phone;
+        } catch (err) {
+          supplierName = bid.supplier_phone;
+        }
+      }
+    }
 
-📋 *Tender*: ${tender.title}
-💰 *Price*: ${bid.price} ${bid.currency}
-⏰ *Delivery*: ${bid.delivery_time || 'Not specified'}
-📞 *Supplier*: ${bid.supplier_phone}
-🌐 *Language*: ${bid.language || 'Unknown'}
-
-Tender ID: ${bid.tender_id}`;
+    const message = `Dear client you have received a bid on your tender ${tender.title} details are below:\n  Price: ${bid.price} ${bid.currency}\n  Delivery: ${bid.delivery_time || 'Not specified'}\n  Supplier: ${supplierName}\nwould you like to select this supplier ? send yes or no`;
 
     // Send to admin phone
     if (process.env.ADMIN_PHONE) {

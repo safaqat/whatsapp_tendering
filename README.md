@@ -288,3 +288,45 @@ For issues or questions:
 ## 📄 License
 
 This project is licensed under the MIT License. 
+
+### **Test Script: Send WhatsApp Message via Twilio**
+
+1. **Create a file called `twilio-test.js` in your project directory.**
+2. **Paste this code:**
+
+```js
+require('dotenv').config();
+const twilio = require('twilio');
+
+const accountSid = process.env.TWILIO_ACCOUNT_SID;
+const authToken = process.env.TWILIO_AUTH_TOKEN;
+const from = process.env.TWILIO_PHONE_NUMBER; // e.g. whatsapp:+14155238886
+const to = 'whatsapp:+96891163374'; // The number you want to test
+
+const client = twilio(accountSid, authToken);
+
+client.messages
+  .create({
+    from,
+    to,
+    body: 'Test message from Twilio via Node.js'
+  })
+  .then(msg => console.log('Message SID:', msg.sid))
+  .catch(console.error);
+```
+
+3. **Run it in your terminal:**
+```sh
+node twilio-test.js
+```
+
+---
+
+**What to expect:**
+- If successful, you'll see a `Message SID` in the console and the WhatsApp message will be delivered.
+- If there's an error, the error message will tell you what's wrong (credentials, number format, permissions, etc.).
+
+---
+
+**If you get an error, copy and paste it here and I'll help you fix it!**  
+If you get a success, your Twilio setup is correct and the issue is in your app logic or environment. 

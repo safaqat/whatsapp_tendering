@@ -29,6 +29,8 @@ module.exports = {
   },
   // Suppliers
   getActiveSuppliers: () => suppliers.filter(s => s.is_active),
+  getSupplierById: (id) => suppliers.find(s => s.id == id),
+  getSupplierByPhone: (phone) => suppliers.find(s => s.phone === phone),
   // Notifications
   addNotification: (notif) => { notifications.push(notif); return notif; },
   getNotifications: () => [...notifications]
