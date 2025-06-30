@@ -93,7 +93,10 @@ class TwilioService {
     }
     // Log notification
     if (this.isMock) {
-      mockDB.addNotification({ type: 'tender_alert', recipient: 'all_suppliers', message: `Tender alert for ${tender.tender_id}`, status: 'mocked', sent_at: new Date() });
+      mockDB.addNotification({ type: 'tender_alert', recipient: 'all_suppliers', message: `Tender alert for ${tender.tender_id}`, status: 'mocked', sent_at: new Date(), suppliers: results });
+      // Also attach to tender for dashboard tracking
+      const tenderObj = mockDB.getTenderById(tender.tender_id);
+      if (tenderObj) tenderObj.supplier_alerts = results;
     } else {
       await this.logNotification('tender_alert', 'all_suppliers', `Tender alert sent for ${tender.tender_id}`, results);
     }
@@ -149,15 +152,30 @@ Tender ID: ${tender.tender_id}`;
       }
     }
 
+    // Look up client phone
+    let clientPhone = process.env.ADMIN_PHONE;
+    if (tender.client_id) {
+      if (this.isMock) {
+        const client = mockDB.getClientById(tender.client_id);
+        if (client && client.phone) clientPhone = client.phone;
+      } else {
+        try {
+          const { pool } = require('../config/database');
+          const result = await pool.query('SELECT phone FROM clients WHERE id = $1', [tender.client_id]);
+          if (result.rows[0] && result.rows[0].phone) clientPhone = result.rows[0].phone;
+        } catch (err) {}
+      }
+    }
+
     if (this.isMock) {
       const message = `Dear client you have received a bid on your tender ${tender.title} details are below:\n  Price: ${bid.price} ${bid.currency}\n  Delivery: ${bid.delivery_time || 'Not specified'}\n  Supplier: ${supplierName}\nwould you like to select this supplier ? send yes or no`;
-      console.log(`[MOCK] WhatsApp template message to admin: bid_notification`);
-      mockDB.addNotification({ type: 'bid_received', recipient: 'admin', message, status: 'mocked', sent_at: new Date() });
+      console.log(`[MOCK] WhatsApp template message to client: bid_notification`);
+      mockDB.addNotification({ type: 'bid_received', recipient: clientPhone, message, status: 'mocked', sent_at: new Date() });
     } else {
       // Use WhatsApp template message
       await this.client.messages.create({
         from: this.fromNumber,
-        to: process.env.ADMIN_PHONE,
+        to: clientPhone,
         contentSid: process.env.BID_NOTIFICATION_TEMPLATE_SID || 'HXce748e6374552b172107da287803e31e',
         contentVariables: JSON.stringify({
           '1': tender.title,
@@ -166,7 +184,7 @@ Tender ID: ${tender.tender_id}`;
           '4': supplierName
         })
       });
-      await this.logNotification('bid_received', 'admin', `New bid for ${bid.tender_id}`, { bid_id: bid.id });
+      await this.logNotification('bid_received', clientPhone, `New bid for ${bid.tender_id}`, { bid_id: bid.id });
     }
 
     return true;
@@ -193,6 +211,28 @@ Tender ID: ${bid.tender_id}`;
       await this.logNotification('winning_bid', bid.supplier_phone, `Winning bid notification for ${bid.tender_id}`, { bid_id: bid.id });
     }
 
+    return true;
+  }
+
+  // Send bid confirmation to supplier
+  async sendBidConfirmationToSupplier(bid, tender) {
+    if (this.isMock) {
+      const message = `Dear supplier, your bid for tender ${tender.title} has been received.\nPrice: ${bid.price} ${bid.currency}\nDelivery: ${bid.delivery_time || 'Not specified'}\nThank you for your participation.`;
+      console.log(`[MOCK] WhatsApp template message to supplier: bid_confirmation`);
+      mockDB.addNotification({ type: 'bid_confirmation', recipient: bid.supplier_phone, message, status: 'mocked', sent_at: new Date() });
+      return true;
+    }
+    await this.client.messages.create({
+      from: this.fromNumber,
+      to: bid.supplier_phone,
+      contentSid: process.env.BID_CONFIRMATION_TEMPLATE_SID || 'YOUR_BID_CONFIRMATION_TEMPLATE_SID',
+      contentVariables: JSON.stringify({
+        '1': tender.title,
+        '2': `${bid.price} ${bid.currency}`,
+        '3': bid.delivery_time || 'Not specified'
+      })
+    });
+    await this.logNotification('bid_confirmation', bid.supplier_phone, `Bid confirmation for ${bid.id}`, { bid_id: bid.id });
     return true;
   }
 

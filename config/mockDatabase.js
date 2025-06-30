@@ -7,12 +7,14 @@ const suppliers = [
   { id: 3, phone: 'whatsapp:+96833333333', name: 'Supplier Three', language: 'Hindi', is_active: true }
 ];
 const notifications = [];
+const clients = [];
 
 module.exports = {
   tenders,
   bids,
   suppliers,
   notifications,
+  clients,
   // CRUD for tenders
   addTender: (tender) => { tenders.push(tender); return tender; },
   getTenders: () => [...tenders],
@@ -33,5 +35,17 @@ module.exports = {
   getSupplierByPhone: (phone) => suppliers.find(s => s.phone === phone),
   // Notifications
   addNotification: (notif) => { notifications.push(notif); return notif; },
-  getNotifications: () => [...notifications]
+  getNotifications: () => [...notifications],
+  addClient: (client) => { clients.push(client); return client; },
+  getClients: () => [...clients],
+  getClientById: (id) => clients.find(c => c.id == id),
+  updateClient: (id, data) => {
+    const client = clients.find(c => c.id == id);
+    if (client) Object.assign(client, data);
+    return client;
+  },
+  deleteClient: (id) => {
+    const idx = clients.findIndex(c => c.id == id);
+    if (idx !== -1) clients.splice(idx, 1);
+  }
 }; 

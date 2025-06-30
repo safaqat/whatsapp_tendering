@@ -67,6 +67,7 @@
       <div class="tab active" data-tab="tenders">📋 Tenders</div>
       <div class="tab" data-tab="bids">💰 Bids</div>
       <div class="tab" data-tab="suppliers">👥 Suppliers</div>
+      <div class="tab" data-tab="clients">👤 Clients</div>
       <div class="tab" data-tab="logs">📝 Logs</div>
     </div>
 
@@ -90,7 +91,16 @@
               <input type="text" id="unit" placeholder="Unit (e.g. packs)" required>
             </div>
           </div>
-          <input type="date" id="closing_date" required>
+          <div class="row">
+            <div class="column">
+              <input type="date" id="closing_date" required>
+            </div>
+            <div class="column">
+              <select id="clientSelect" required>
+                <option value="">Select Client</option>
+              </select>
+            </div>
+          </div>
           <textarea id="description" placeholder="Description" rows="2"></textarea>
           <button type="submit" id="submitBtn">Post Tender</button>
           <span id="tenderMsg"></span>
@@ -101,7 +111,7 @@
         <h2>Recent Tenders</h2>
         <table id="tendersTable">
           <thead>
-            <tr><th>ID</th><th>Title</th><th>Category</th><th>Quantity</th><th>Unit</th><th>Closing</th><th>Status</th></tr>
+            <tr><th>ID</th><th>Title</th><th>Category</th><th>Quantity</th><th>Unit</th><th>Closing</th><th>Status</th><th>Suppliers Notified</th></tr>
           </thead>
           <tbody></tbody>
         </table>
@@ -176,6 +186,38 @@
       </div>
     </div>
 
+    <div id="clients-tab" class="tab-content">
+      <div class="card">
+        <h2>Add New Client</h2>
+        <form id="clientForm">
+          <div class="row">
+            <div class="column">
+              <input type="text" id="clientName" placeholder="Client name" required>
+            </div>
+            <div class="column">
+              <input type="text" id="clientPhone" placeholder="WhatsApp number (e.g. +96812345678)" required>
+            </div>
+          </div>
+          <div class="row">
+            <div class="column">
+              <input type="email" id="clientEmail" placeholder="Email (optional)">
+            </div>
+          </div>
+          <button type="submit" id="addClientBtn">Add Client</button>
+          <span id="clientMsg"></span>
+        </form>
+      </div>
+      <div class="card">
+        <h2>Manage Clients</h2>
+        <table id="clientsTable">
+          <thead>
+            <tr><th>Name</th><th>Phone</th><th>Email</th><th>Status</th><th>Actions</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
     <div id="logs-tab" class="tab-content">
       <div class="card">
         <h2>System Logs</h2>
@@ -204,6 +246,8 @@
       // Load tab-specific data
       if (tabName === 'suppliers') {
         fetchSuppliers();
+      } else if (tabName === 'clients') {
+        fetchClients();
       } else if (tabName === 'logs') {
         fetchLogs();
       }
@@ -287,6 +331,7 @@
             <td>${t.unit}</td>
             <td>${new Date(t.closing_date).toLocaleDateString()}</td>
             <td>${t.status}</td>
+            <td>${(t.supplier_alerts && t.supplier_alerts.length) ? t.supplier_alerts.map(a => `${a.supplier}<br><span style='color:${a.success ? 'green' : 'red'}'>${a.success ? '✔' : '✖'}</span>`).join('<hr>') : ''}</td>
           </tr>`;
         });
       } catch (error) {
@@ -338,6 +383,29 @@
         });
       } catch (error) {
         console.error('Error fetching suppliers:', error);
+      }
+    }
+
+    async function fetchClients() {
+      try {
+        const res = await fetch('/api/admin/clients');
+        const clients = await res.json();
+        const tbody = document.querySelector('#clientsTable tbody');
+        tbody.innerHTML = '';
+        clients.forEach(c => {
+          tbody.innerHTML += `<tr>
+            <td>${c.name}</td>
+            <td>${c.phone}</td>
+            <td>${c.email || ''}</td>
+            <td>${c.is_active ? 'Active' : 'Inactive'}</td>
+            <td>
+              <button onclick="editClient(${c.id})" class="button button-small">Edit</button>
+              <button onclick="deleteClient(${c.id})" class="button button-small">Delete</button>
+            </td>
+          </tr>`;
+        });
+      } catch (error) {
+        console.error('Error fetching clients:', error);
       }
     }
 
@@ -421,6 +489,90 @@
       }
     }
 
+    document.getElementById('clientForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const submitBtn = document.getElementById('addClientBtn');
+      const msgSpan = document.getElementById('clientMsg');
+      submitBtn.disabled = true;
+      msgSpan.textContent = '';
+      const client = {
+        name: document.getElementById('clientName').value,
+        phone: document.getElementById('clientPhone').value,
+        email: document.getElementById('clientEmail').value
+      };
+      try {
+        const res = await fetch('/api/admin/clients', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(client)
+        });
+        if (res.ok) {
+          msgSpan.textContent = '✅ Client added successfully!';
+          msgSpan.className = 'success';
+          document.getElementById('clientForm').reset();
+          fetchClients();
+        } else {
+          const error = await res.text();
+          msgSpan.textContent = '❌ Error: ' + error;
+          msgSpan.className = 'error';
+        }
+      } catch (error) {
+        msgSpan.textContent = '❌ Error: ' + error.message;
+        msgSpan.className = 'error';
+      } finally {
+        submitBtn.disabled = false;
+        setTimeout(() => { msgSpan.textContent = ''; }, 3000);
+      }
+    });
+
+    async function deleteClient(id) {
+      if (!confirm('Delete this client?')) return;
+      try {
+        const res = await fetch(`/api/admin/clients/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+          fetchClients();
+        } else {
+          alert('Error deleting client');
+        }
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    }
+
+    function editClient(id) {
+      // For simplicity, just prompt for new values
+      const row = Array.from(document.querySelectorAll('#clientsTable tbody tr')).find(r => r.querySelector('button').onclick.toString().includes(`${id}`));
+      if (!row) return;
+      const name = prompt('Client name:', row.children[0].textContent);
+      const phone = prompt('WhatsApp number:', row.children[1].textContent);
+      const email = prompt('Email:', row.children[2].textContent);
+      const is_active = confirm('Is active? (OK = Active, Cancel = Inactive)');
+      fetch(`/api/admin/clients/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, phone, email, is_active })
+      }).then(res => {
+        if (res.ok) fetchClients();
+        else alert('Error updating client');
+      });
+    }
+
+    async function fetchClientsForTender() {
+      try {
+        const res = await fetch('/api/admin/clients');
+        const clients = await res.json();
+        const select = document.getElementById('clientSelect');
+        select.innerHTML = '<option value="">Select Client</option>';
+        clients.forEach(c => {
+          if (c.is_active) {
+            select.innerHTML += `<option value="${c.id}">${c.name} (${c.phone})</option>`;
+          }
+        });
+      } catch (error) {
+        console.error('Error fetching clients for tender:', error);
+      }
+    }
+
     // Event Listeners
     document.addEventListener('DOMContentLoaded', function() {
       // Copy webhook URL button
@@ -460,7 +612,8 @@
           quantity: parseInt(document.getElementById('quantity').value),
           unit: document.getElementById('unit').value,
           closing_date: document.getElementById('closing_date').value,
-          description: document.getElementById('description').value || document.getElementById('title').value
+          description: document.getElementById('description').value || document.getElementById('title').value,
+          client_id: document.getElementById('clientSelect').value
         };
 
         try {
@@ -559,6 +712,8 @@
       fetchSystemStatus();
       fetchTenders();
       fetchBids();
+      fetchClients();
+      fetchClientsForTender();
     });
   </script>
 </body>

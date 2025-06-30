@@ -11,7 +11,7 @@ router.get('/', async (req, res) => {
       const result = await pool.query('SELECT * FROM tenders ORDER BY created_at DESC');
       res.json(result.rows);
     } else {
-      res.json(mockDB.getTenders());
+      res.json(mockDB.getTenders().map(t => ({ ...t, supplier_alerts: t.supplier_alerts || [] })));
     }
   } catch (error) {
     console.error('Error fetching tenders:', error);
@@ -22,7 +22,7 @@ router.get('/', async (req, res) => {
 // Create a new tender
 router.post('/', async (req, res) => {
   try {
-    const { title, category, quantity, unit, closing_date, description } = req.body;
+    const { title, category, quantity, unit, closing_date, description, client_id } = req.body;
     const tender = {
       tender_id: `tender-${Date.now()}`,
       title,
@@ -31,6 +31,7 @@ router.post('/', async (req, res) => {
       unit,
       closing_date,
       description,
+      client_id,
       status: 'active',
       created_at: new Date(),
       updated_at: new Date()
@@ -39,8 +40,8 @@ router.post('/', async (req, res) => {
     let savedTender;
     if (hasRealDatabase && pool) {
       const result = await pool.query(
-        'INSERT INTO tenders (tender_id, title, description, category, quantity, unit, closing_date) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-        [tender.tender_id, tender.title, tender.description, tender.category, tender.quantity, tender.unit, tender.closing_date]
+        'INSERT INTO tenders (tender_id, title, description, category, quantity, unit, closing_date, client_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+        [tender.tender_id, tender.title, tender.description, tender.category, tender.quantity, tender.unit, tender.closing_date, tender.client_id]
       );
       savedTender = result.rows[0];
     } else {

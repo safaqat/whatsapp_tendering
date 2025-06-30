@@ -442,6 +442,8 @@ async function saveBid(supplierPhone, processed, tender) {
     
     // Send notification to coordinators
     await twilioService.sendBidNotification(bid, tender);
+    // Send confirmation to supplier (template)
+    await twilioService.sendBidConfirmationToSupplier(bid, tender);
     
     console.log(`✅ Bid saved: ${bid.id} for tender ${tender.tender_id}`);
     return bid;

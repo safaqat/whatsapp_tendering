@@ -39,6 +39,7 @@ const initDatabase = async () => {
     await pool.query('DROP TABLE IF EXISTS suppliers CASCADE');
     await pool.query('DROP TABLE IF EXISTS notifications CASCADE');
     await pool.query('DROP TABLE IF EXISTS tenders CASCADE');
+    await pool.query('DROP TABLE IF EXISTS clients CASCADE');
 
     // Create tenders table
     await pool.query(`
@@ -100,6 +101,18 @@ const initDatabase = async () => {
         message TEXT NOT NULL,
         status VARCHAR(20) DEFAULT 'pending',
         sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Create clients table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS clients (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        phone VARCHAR(50) UNIQUE NOT NULL,
+        email VARCHAR(255),
+        is_active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 

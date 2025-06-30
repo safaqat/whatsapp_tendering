@@ -210,4 +210,91 @@ router.delete('/logs', async (req, res) => {
   }
 });
 
+// Get all clients
+router.get('/clients', async (req, res) => {
+  try {
+    let clients;
+    if (hasRealDatabase && pool) {
+      const result = await pool.query('SELECT * FROM clients ORDER BY created_at DESC');
+      clients = result.rows;
+    } else {
+      clients = mockDB.getClients();
+    }
+    res.json(clients);
+  } catch (error) {
+    console.error('Error fetching clients:', error);
+    res.status(500).json({ error: 'Failed to fetch clients' });
+  }
+});
+
+// Add new client
+router.post('/clients', async (req, res) => {
+  try {
+    const { name, phone, email, is_active } = req.body;
+    if (!name || !phone) {
+      return res.status(400).json({ error: 'Name and phone are required' });
+    }
+    const client = {
+      name,
+      phone: phone.startsWith('whatsapp:') ? phone : `whatsapp:${phone}`,
+      email: email || null,
+      is_active: is_active !== undefined ? is_active : true,
+      created_at: new Date()
+    };
+    let savedClient;
+    if (hasRealDatabase && pool) {
+      const result = await pool.query(
+        'INSERT INTO clients (name, phone, email, is_active) VALUES ($1, $2, $3, $4) RETURNING *',
+        [client.name, client.phone, client.email, client.is_active]
+      );
+      savedClient = result.rows[0];
+    } else {
+      client.id = Date.now();
+      mockDB.addClient(client);
+      savedClient = client;
+    }
+    res.status(201).json(savedClient);
+  } catch (error) {
+    console.error('Error adding client:', error);
+    res.status(500).json({ error: 'Failed to add client' });
+  }
+});
+
+// Update client
+router.put('/clients/:id', async (req, res) => {
+  try {
+    const { name, phone, email, is_active } = req.body;
+    let updatedClient;
+    if (hasRealDatabase && pool) {
+      const result = await pool.query(
+        'UPDATE clients SET name = $1, phone = $2, email = $3, is_active = $4 WHERE id = $5 RETURNING *',
+        [name, phone, email, is_active, req.params.id]
+      );
+      updatedClient = result.rows[0];
+    } else {
+      updatedClient = mockDB.updateClient(req.params.id, { name, phone, email, is_active });
+    }
+    if (!updatedClient) return res.status(404).json({ error: 'Client not found' });
+    res.json(updatedClient);
+  } catch (error) {
+    console.error('Error updating client:', error);
+    res.status(500).json({ error: 'Failed to update client' });
+  }
+});
+
+// Delete client
+router.delete('/clients/:id', async (req, res) => {
+  try {
+    if (hasRealDatabase && pool) {
+      await pool.query('DELETE FROM clients WHERE id = $1', [req.params.id]);
+    } else {
+      mockDB.deleteClient(req.params.id);
+    }
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting client:', error);
+    res.status(500).json({ error: 'Failed to delete client' });
+  }
+});
+
 module.exports = router; 
